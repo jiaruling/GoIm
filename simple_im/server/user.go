@@ -31,7 +31,10 @@ func NewUser(conn net.Conn, serv *Server) *User {
 // ListenMessage 监听当前user的通道
 func (user *User) ListenMessage() {
 	for {
-		msg := <-user.ch                    // 从通道中取出消息
+		msg, ok := <-user.ch                    // 从通道中取出消息
+		if !ok {
+			return
+		}
 		user.conn.Write([]byte(msg + "\n")) // 发送给客户端
 	}
 }
@@ -54,7 +57,7 @@ func (user *User) Offline() {
 	user.serv.BroadCast(user, " has left")
 }
 
-func (user *User) DoMessage(msg string) {
+func (user *User) DoMessage(msg string, closeClient chan struct{}) {
 	// 执行指令
 	if msg[0] == '$' {
 		if msg == "$who" {
@@ -89,6 +92,8 @@ func (user *User) DoMessage(msg string) {
 			} else {
 				user.ch <- "The user does not exist"
 			}
+		} else if msg == "$exit" {
+			closeClient <- struct{}{}
 		} else {
 			// 提示信息
 			user.ch <- "Wrong instruction"

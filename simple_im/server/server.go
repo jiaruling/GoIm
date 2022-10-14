@@ -38,15 +38,21 @@ func (s *Server) handler(conn net.Conn) {
 	user.Online()
 	// 是否活跃
 	active := make(chan struct{})
+	closeClient := make(chan struct{})
 	// 接收消息
 	go func() {
 		input := bufio.NewScanner(conn)
 		for input.Scan() {
 			log.Println(addr + ": " + input.Text())
 			//s.BroadCast(user, input.Text())
-			user.DoMessage(input.Text())
+			user.DoMessage(input.Text(), closeClient)
 			// 用户的任意消息 都代表用户当前活跃
-			active <- struct{}{}
+			if _, ok :=<- closeClient; !ok {
+				break
+			}
+			if _, ok :=<- active; ok {
+				active <- struct{}{}
+			}
 		}
 		// 用户下线
 		user.Offline()
@@ -57,22 +63,29 @@ func (s *Server) handler(conn net.Conn) {
 		select {
 		case <-active:
 			// 激活select便会 重置定时器
-		case <-time.After(time.Minute * 60):
+		case <-time.After(time.Second * 10):
 			// 超时
 			user.conn.Write([]byte("You've been kicked out\n"))
-			s.mapLock.Lock()
-			delete(s.OnlineMap, user.Name) // 在map中删除
-			s.mapLock.Unlock()
 			close(user.ch) // 关闭通道
+			close(active)
+			close(closeClient)
 			conn.Close()   // 关闭连接
-			return // 返回这个函数
+			return         // 返回这个函数
+		case <-closeClient:
+			// 客户端主动关闭
+			close(user.ch) // 关闭通道
+			close(active)
+			close(closeClient)
+			conn.Close()   // 关闭连接
+			return         // 返回这个函数
 		}
 	}
+
 }
 
 func (s *Server) BroadCast(user *User, msg string) {
 	sendMsg := "[" + user.Addr + "]" + user.Name + ":" + msg
-	s.Message <- sendMsg  // 向服务器广播消息通道发送字符串
+	s.Message <- sendMsg // 向服务器广播消息通道发送字符串
 }
 
 // 广播消息
@@ -99,7 +112,7 @@ func (s *Server) Start() {
 	}
 	defer listener.Close() // 关闭连接
 	// 启动监听Message的goroutine
-	go s.ListenMessage()  // 广播消息
+	go s.ListenMessage() // 广播消息
 	for {
 		// 接收连接
 		conn, err := listener.Accept()

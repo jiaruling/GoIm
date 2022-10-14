@@ -85,6 +85,15 @@ func (clnt *Client) PublicChat() {
 	}
 }
 
+func (clnt *Client) Close() {
+	send := "$exit\n"
+	_, err := clnt.conn.Write([]byte(send))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+
 // 显示所有在线用户
 func (clnt *Client) SelectUser() {
 	send := "$who\n"
@@ -154,6 +163,7 @@ func (clnt *Client) Run() {
 			clnt.UpdateName()
 		case 0: // 为0则循环结束
 			fmt.Println("exit...")
+			clnt.Close()
 		}
 	}
 }
