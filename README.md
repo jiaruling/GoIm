@@ -7,10 +7,17 @@
 
 - **[通讯系统](https://github.com/alberliu/im)**
 
-## 说明
+## 目录结构
 
-### pre-study
-
-
+```text
+├─gim
+├─pre_study
+│  ├─client
+│  ├─proto
+│  └─server
+└─simple_im
+    ├─client
+    └─server
+```
 
 ## 需求分析
