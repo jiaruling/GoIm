@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"strings"
 )
 
 type Client struct {
@@ -25,10 +27,12 @@ var (
 func (clnt *Client) menu() bool {
 	var choice int
 
+	fmt.Println("******************************")
 	fmt.Println("1.Public chat mode")
 	fmt.Println("2.Private chat mode")
 	fmt.Println("3.Update the user name")
 	fmt.Println("0.Exit")
+	fmt.Println("******************************")
 
 	fmt.Scanf("%d", &choice)
 	if choice >= 0 && choice <= 3 {
@@ -43,13 +47,22 @@ func (clnt *Client) menu() bool {
 // UpdateName 更新用户名
 func (clnt *Client) UpdateName() bool {
 	fmt.Println("Enter your new username: ")
-	_, err := fmt.Scanln(&clnt.Name)
-	if err != nil {
-		fmt.Println(err.Error())
-		return false
+	// 接收控制台输入
+	for {
+		_, err := fmt.Scanln(&clnt.Name)
+		if err == nil {
+			break
+		} else if err.Error() == "unexpected newline" {
+			//fmt.Println("continue")
+			continue
+		} else {
+			fmt.Println(err.Error())
+			return false
+		}
 	}
+
 	msg := "$rename:" + clnt.Name + "\n"
-	_, err = clnt.conn.Write([]byte(msg))
+	_, err := clnt.conn.Write([]byte(msg))
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -62,6 +75,7 @@ func (clnt *Client) PublicChat() {
 	// 提示用户输入消息
 	var msg string
 	fmt.Println("[Public Mode]\nEnter '$exit' to exit")
+	reader := bufio.NewReader(os.Stdin)
 	for msg != "$exit" {
 		if len(msg) > 0 {
 			send := msg + "\n"
@@ -72,7 +86,9 @@ func (clnt *Client) PublicChat() {
 			}
 		}
 		msg = ""
-		fmt.Scanln(&msg)
+		text, _ := reader.ReadString('\n')
+		msg = strings.TrimSpace(text)
+		//fmt.Scanln(&msg)
 	}
 }
 
@@ -92,11 +108,20 @@ func (clnt *Client) PriavteChat() {
 	var msg string
 	fmt.Println("[Private Mode] Enter '$exit' to exit")
 	clnt.SelectUser()
-	_, err := fmt.Scanln(&name)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	// 接收控制台输入
+	for {
+		_, err := fmt.Scanln(&name)
+		if err == nil {
+			break
+		} else if err.Error() == "unexpected newline" {
+			//fmt.Println("continue")
+			continue
+		} else {
+			fmt.Println(err.Error())
+			return
+		}
 	}
+	reader := bufio.NewReader(os.Stdin)
 	for msg != "$exit" {
 		if len(msg) > 0 {
 			send := "$to " + name + ":" + msg + "\n"
@@ -107,7 +132,9 @@ func (clnt *Client) PriavteChat() {
 			}
 		}
 		msg = ""
-		fmt.Scan(&msg)
+		text, _ := reader.ReadString('\n')
+		msg = strings.TrimSpace(text)
+		//fmt.Scanln(&msg)
 	}
 }
 
@@ -119,21 +146,18 @@ func (clnt *Client) Run() {
 		switch clnt.choice {
 		case 1: // 公聊模式
 			clnt.PublicChat()
-			break
 		case 2: // 私聊模式
 			clnt.PriavteChat()
-			break
 		case 3: // 更新用户名
 			clnt.UpdateName()
-			break
 		case 0: // 为0则循环结束
-			fmt.Println("aaaaaaaaaaa")
+			fmt.Println("exit...")
 		}
 	}
 }
 
-// DoResponce 处理服务器消息
-func (clnt *Client) DoResponce() {
+// DoResponse 处理服务器消息
+func (clnt *Client) DoResponse() {
 	io.Copy(os.Stdout, clnt.conn)
 }
 
@@ -168,7 +192,7 @@ func main() {
 	if clnt == nil {
 		return
 	}
-	go clnt.DoResponce()
+	go clnt.DoResponse()
 	fmt.Println("connect ok")
 	clnt.Run()
 	//select {}
