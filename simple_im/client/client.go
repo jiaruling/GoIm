@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 type Client struct {
@@ -48,19 +49,11 @@ func (clnt *Client) menu() bool {
 func (clnt *Client) UpdateName() bool {
 	fmt.Println("Enter your new username: ")
 	// 接收控制台输入
-	for {
-		_, err := fmt.Scanln(&clnt.Name)
-		if err == nil {
-			break
-		} else if err.Error() == "unexpected newline" {
-			//fmt.Println("continue")
-			continue
-		} else {
-			fmt.Println(err.Error())
-			return false
-		}
+	clnt.Name = input()
+	if clnt.Name == "" {
+		fmt.Println("获取名称失败")
+		return false
 	}
-
 	msg := "$rename:" + clnt.Name + "\n"
 	_, err := clnt.conn.Write([]byte(msg))
 	if err != nil {
@@ -104,22 +97,14 @@ func (clnt *Client) SelectUser() {
 
 // PriavteChat 私聊
 func (clnt *Client) PriavteChat() {
-	var name string
 	var msg string
 	fmt.Println("[Private Mode] Enter '$exit' to exit")
 	clnt.SelectUser()
 	// 接收控制台输入
-	for {
-		_, err := fmt.Scanln(&name)
-		if err == nil {
-			break
-		} else if err.Error() == "unexpected newline" {
-			//fmt.Println("continue")
-			continue
-		} else {
-			fmt.Println(err.Error())
-			return
-		}
+	name := input()
+	if name == "" {
+		fmt.Println("获取名称失败")
+		return
 	}
 	reader := bufio.NewReader(os.Stdin)
 	for msg != "$exit" {
@@ -138,8 +123,25 @@ func (clnt *Client) PriavteChat() {
 	}
 }
 
+func input() (value string) {
+	for {
+		_, err := fmt.Scanln(&value)
+		if err == nil {
+			break
+		} else if err.Error() == "unexpected newline" {
+			//fmt.Println("continue")
+			continue
+		} else {
+			fmt.Println(err.Error())
+			return
+		}
+	}
+	return
+}
+
 func (clnt *Client) Run() {
 	for clnt.choice != 0 {
+		time.Sleep(200*time.Millisecond)
 		for !clnt.menu() {
 		} // 如果不为true，则一直循环在这里
 		// 根据不同的模式处理不同业务

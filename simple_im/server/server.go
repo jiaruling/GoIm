@@ -75,6 +75,7 @@ func (s *Server) BroadCast(user *User, msg string) {
 	s.Message <- sendMsg  // 向服务器广播消息通道发送字符串
 }
 
+// 广播消息
 func (s *Server) ListenMessage() {
 	for {
 		msg := <-s.Message
@@ -98,7 +99,7 @@ func (s *Server) Start() {
 	}
 	defer listener.Close() // 关闭连接
 	// 启动监听Message的goroutine
-	go s.ListenMessage()
+	go s.ListenMessage()  // 广播消息
 	for {
 		// 接收连接
 		conn, err := listener.Accept()
