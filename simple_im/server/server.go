@@ -38,19 +38,21 @@ func (s *Server) handler(conn net.Conn) {
 	user.Online()
 	// 是否活跃
 	active := make(chan struct{})
+	// 客户端关闭
 	closeClient := make(chan struct{})
+	var exit bool
 	// 接收消息
 	go func() {
 		input := bufio.NewScanner(conn)
 		for input.Scan() {
 			log.Println(addr + ": " + input.Text())
 			//s.BroadCast(user, input.Text())
-			user.DoMessage(input.Text(), closeClient)
+			user.DoMessage(input.Text(), closeClient, &exit)
 			// 用户的任意消息 都代表用户当前活跃
-			if _, ok :=<- closeClient; !ok {
+			if exit {
+				// 退出死循环
 				break
-			}
-			if _, ok :=<- active; ok {
+			} else {
 				active <- struct{}{}
 			}
 		}
@@ -63,24 +65,30 @@ func (s *Server) handler(conn net.Conn) {
 		select {
 		case <-active:
 			// 激活select便会 重置定时器
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Minute * 10):
 			// 超时
-			user.conn.Write([]byte("You've been kicked out\n"))
-			close(user.ch) // 关闭通道
-			close(active)
-			close(closeClient)
-			conn.Close()   // 关闭连接
-			return         // 返回这个函数
+			s.exit(user, active, closeClient, "You've been kicked out\n")
+			return
 		case <-closeClient:
 			// 客户端主动关闭
-			close(user.ch) // 关闭通道
-			close(active)
-			close(closeClient)
-			conn.Close()   // 关闭连接
-			return         // 返回这个函数
+			s.exit(user, active, closeClient)
+			return
 		}
 	}
 
+}
+
+func (s *Server) exit(user *User, active, closeClient chan struct{}, send ...string) {
+	// 超时
+	if len(send) > 0 {
+		user.conn.Write([]byte(send[0]))
+	}
+	// 关闭通道
+	close(user.ch)
+	close(active)
+	close(closeClient)
+	user.conn.Close() // 关闭连接
+	return            // 返回这个函数
 }
 
 func (s *Server) BroadCast(user *User, msg string) {

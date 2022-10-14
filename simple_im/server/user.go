@@ -57,7 +57,7 @@ func (user *User) Offline() {
 	user.serv.BroadCast(user, " has left")
 }
 
-func (user *User) DoMessage(msg string, closeClient chan struct{}) {
+func (user *User) DoMessage(msg string, closeClient chan struct{}, exit *bool) {
 	// 执行指令
 	if msg[0] == '$' {
 		if msg == "$who" {
@@ -94,6 +94,7 @@ func (user *User) DoMessage(msg string, closeClient chan struct{}) {
 			}
 		} else if msg == "$exit" {
 			closeClient <- struct{}{}
+			*exit = true
 		} else {
 			// 提示信息
 			user.ch <- "Wrong instruction"

@@ -85,6 +85,7 @@ func (clnt *Client) PublicChat() {
 	}
 }
 
+// 客户端关闭通知服务器
 func (clnt *Client) Close() {
 	send := "$exit\n"
 	_, err := clnt.conn.Write([]byte(send))
@@ -104,8 +105,8 @@ func (clnt *Client) SelectUser() {
 	}
 }
 
-// PriavteChat 私聊
-func (clnt *Client) PriavteChat() {
+// PrivateChat 私聊
+func (clnt *Client) PrivateChat() {
 	var msg string
 	fmt.Println("[Private Mode] Enter '$exit' to exit")
 	clnt.SelectUser()
@@ -150,15 +151,15 @@ func input() (value string) {
 
 func (clnt *Client) Run() {
 	for clnt.choice != 0 {
-		time.Sleep(200*time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		for !clnt.menu() {
 		} // 如果不为true，则一直循环在这里
 		// 根据不同的模式处理不同业务
 		switch clnt.choice {
-		case 1: // 公聊模式
+		case 1: // 公聊模
 			clnt.PublicChat()
 		case 2: // 私聊模式
-			clnt.PriavteChat()
+			clnt.PrivateChat()
 		case 3: // 更新用户名
 			clnt.UpdateName()
 		case 0: // 为0则循环结束
