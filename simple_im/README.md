@@ -18,4 +18,6 @@
 ~: go run main.go
 # 启动客户端
 ~: cd client && go run client.go
+# 通过linux命令连接服务器
+~: nc 192.168.8.88 9091
 ```

@@ -31,8 +31,11 @@ func NewServer(ip string, port int) *Server {
 
 // handler 处理连接
 func (s *Server) handler(conn net.Conn) {
+	// 客户端主动退出标记
 	var exit bool
+	// context 控制goroutine退出
 	ctx, cancel := context.WithCancel(context.Background())
+	// 获取客户端的IP地址
 	addr := conn.RemoteAddr().String()
 	log.Println(addr + " is connecting")
 	// 创建用户
@@ -68,6 +71,7 @@ func (s *Server) handler(conn net.Conn) {
 		}
 	}(ctx)
 
+LOOP:
 	for {
 		select {
 		case <-active:
@@ -76,12 +80,12 @@ func (s *Server) handler(conn net.Conn) {
 			// 超时
 			s.exit(user, active, closeClient, "You've been kicked out\n")
 			cancel()
-			return
+			break LOOP
 		case <-closeClient:
 			// 客户端主动关闭
 			s.exit(user, active, closeClient)
 			cancel()
-			return
+			break LOOP
 		}
 	}
 }
