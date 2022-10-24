@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -30,36 +31,42 @@ func NewServer(ip string, port int) *Server {
 
 // handler 处理连接
 func (s *Server) handler(conn net.Conn) {
+	var exit bool
+	ctx, cancel := context.WithCancel(context.Background())
 	addr := conn.RemoteAddr().String()
 	log.Println(addr + " is connecting")
 	// 创建用户
-	user := NewUser(conn, s)
+	user := NewUser(conn, s, ctx)
 	// 用户上线
 	user.Online()
 	// 是否活跃
 	active := make(chan struct{})
 	// 客户端关闭
 	closeClient := make(chan struct{})
-	var exit bool
 	// 接收消息
-	go func() {
+	go func(ctx context.Context) {
 		input := bufio.NewScanner(conn)
-		for input.Scan() {
-			log.Println(addr + ": " + input.Text())
-			//s.BroadCast(user, input.Text())
-			user.DoMessage(input.Text(), closeClient, &exit)
-			// 用户的任意消息 都代表用户当前活跃
-			if exit {
-				// 退出死循环
-				break
-			} else {
-				active <- struct{}{}
+	loop:
+		for {
+			select {
+			case <-ctx.Done():
+				// 用户下线
+				user.Offline()
+				log.Println(addr + " has been disconnected")
+				break loop
+			default:
+				if input.Scan() {
+					log.Println(addr + ": " + input.Text())
+					//s.BroadCast(user, input.Text())
+					user.DoMessage(input.Text(), closeClient, &exit)
+					if !exit {
+						// 用户的任意消息 都代表用户当前活跃
+						active <- struct{}{}
+					}
+				}
 			}
 		}
-		// 用户下线
-		user.Offline()
-		log.Println(addr + " has been disconnected")
-	}()
+	}(ctx)
 
 	for {
 		select {
@@ -68,14 +75,15 @@ func (s *Server) handler(conn net.Conn) {
 		case <-time.After(time.Minute * 10):
 			// 超时
 			s.exit(user, active, closeClient, "You've been kicked out\n")
+			cancel()
 			return
 		case <-closeClient:
 			// 客户端主动关闭
 			s.exit(user, active, closeClient)
+			cancel()
 			return
 		}
 	}
-
 }
 
 func (s *Server) exit(user *User, active, closeClient chan struct{}, send ...string) {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net"
 	"strings"
 )
@@ -14,7 +15,7 @@ type User struct {
 }
 
 // NewUser 创建一个用户
-func NewUser(conn net.Conn, serv *Server) *User {
+func NewUser(conn net.Conn, serv *Server, ctx context.Context) *User {
 	userAddr := conn.RemoteAddr().String()
 	// 创建结构体
 	user := &User{
@@ -24,19 +25,22 @@ func NewUser(conn net.Conn, serv *Server) *User {
 		conn: conn,
 		serv: serv,
 	}
-	go user.ListenMessage() // 调用一个goroutine监听消息
+	go user.ListenMessage(ctx) // 调用一个goroutine监听消息
 	return user
 }
 
 // ListenMessage 监听当前user的通道
-func (user *User) ListenMessage() {
+func (user *User) ListenMessage(ctx context.Context) {
+loop:
 	for {
-		msg, ok := <-user.ch                    // 从通道中取出消息
-		if !ok {
-			return
+		select {
+		case msg := <-user.ch:
+			user.conn.Write([]byte(msg + "\n")) // 发送给客户端
+		case <-ctx.Done():
+			break loop
 		}
-		user.conn.Write([]byte(msg + "\n")) // 发送给客户端
 	}
+	return
 }
 
 // Online 用户上线
